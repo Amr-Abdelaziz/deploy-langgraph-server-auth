@@ -1,3 +1,10 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [project]
 name = "deploy-langgraph-server-auth"
 version = "0.1.0"
@@ -5,12 +12,17 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "supabase>=2.3.0",
+    "aiohttp>=3.9.0",
+    "langgraph-sdk>=0.1.0",
+    "langchain>=0.3.0",
     "colorama>=0.4.6",
     "google-api-python-client>=2.171.0",
     "langchain-core>=0.3.63",
     "langchain-mcp-adapters>=0.1.7",
     "langchain-openai>=0.3.19",
     "langgraph>=0.4.8",
+    "langgraph-supervisor>=0.0.1",
     "mcp>=1.9.3",
     "psycopg2-binary>=2.9.10",
     "pydantic>=2.11.5",
@@ -20,6 +32,8 @@ dependencies = [
     "httpx>=0.25.0",
     "uvicorn>=0.24.0",
     "starlette>=0.28.0",
+    "streamlit>=1.50.0",
+    "langchain-ollama>=1.0.0",
 ]
 
 [dependency-groups]

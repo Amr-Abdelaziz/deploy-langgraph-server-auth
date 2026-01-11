@@ -1,9 +1,15 @@
 {
-    "dependencies": ["."],
-    "graphs": {
-      "rocket": "./src/rocket/graph.py:graph"
-    },
-    "env": ".env",
-    "python_version": "3.13",
-    "image_distro": "wolfi"
+  "dependencies": [
+    "."
+  ],
+  "graphs": {
+    "tools_agent": "./src/tools_agent/graph.py:graph",
+    "multi_agent_supervisor": "./src/supervisor/graph.py:graph"
+  },
+  "env": ".env",
+  "python_version": "3.13",
+  "image_distro": "wolfi",
+  "auth": {
+    "path": "./src/tools_agent/security/auth.py:auth"
+  }
 }

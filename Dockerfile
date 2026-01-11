@@ -6,7 +6,7 @@ RUN apk add --no-cache nodejs npm
 # </MODIFIED>
 
 # -- Adding local package . --
-ADD . /deps/deploy-langgraph-server-auth
+ADD . /deps/deploy-langgraph-servers
 # -- End of local package . --
 
 # <MODIFIED>
@@ -19,10 +19,10 @@ COPY scripts/ /api/scripts/
 # -- Installing all local dependencies --
 RUN PYTHONDONTWRITEBYTECODE=1 uv pip install --system --no-cache-dir -c /api/constraints.txt -e /deps/*
 # -- End of local dependencies install --
-ENV LANGSERVE_GRAPHS='{"rocket": "/deps/deploy-langgraph-server-auth/src/rocket/graph.py:graph"}'
+ENV LANGSERVE_GRAPHS='{"supervisor": "/deps/deploy-langgraph-servers/src/supervisor/graph.py:graph","tools_agent": "/deps/deploy-langgraph-servers/src/tools_agent/graph.py:graph"}'
 
 # <MODIFIED>
-ENV PYTHONPATH="/deps/deploy-langgraph-server-auth:/api"
+ENV PYTHONPATH="/deps/deploy-langgraph-servers:/api"
 # </MODIFIED>
 
 # -- Ensure user deps didn't inadvertently overwrite langgraph-api
@@ -36,7 +36,7 @@ RUN rm -rf /usr/lib/python*/site-packages/pip* /usr/lib/python*/site-packages/se
 RUN uv pip uninstall --system pip setuptools wheel && rm /usr/bin/uv /usr/bin/uvx
 # -- End of pip removal --
 
-WORKDIR /deps/deploy-langgraph-server-auth
+WORKDIR /deps/deploy-langgraph-servers
 
 # <MODIFIED>
 # -- Use the modular proxy server that adds auth without modifying LangGraph --

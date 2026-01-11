@@ -7,9 +7,9 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 from typing import Annotated, List
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from rocket.my_mcp.config import mcp_config
+from gorbit.my_mcp.config import mcp_config
 from dotenv import load_dotenv
-from rocket.prompts.prompts import rocket_system_prompt
+from gorbit.prompts.prompts import gorbit_system_prompt
 import asyncio
 
 
@@ -21,7 +21,7 @@ class AgentState(BaseModel):
 
 
 async def build_graph() -> CompiledStateGraph:
-    """Build the graph for the Rocket agent."""
+    """Build the graph for the Gorbit agent."""
 
     builder = StateGraph(AgentState)
 
@@ -30,11 +30,11 @@ async def build_graph() -> CompiledStateGraph:
     tools = await client.get_tools()
     print(f"Successfully loaded {len(tools)} tools")
 
-    llm = ChatOpenAI(model="qwen3-coder-30B", temperature=0.1, base_url="http://100.97.2.15/v1/").bind_tools(tools)
+    llm = ChatOpenAI(  api_key="ollama", model="gpt-oss:latest", temperature=0.1, base_url="http://100.101.254.97:11434/v1").bind_tools(tools)
 
     def assistant(state: AgentState) -> AgentState:
         response = llm.invoke(
-            [SystemMessage(content=rocket_system_prompt)] +
+            [SystemMessage(content=gorbit_system_prompt)] +
             state.messages
             )
         state.messages.append(response)
