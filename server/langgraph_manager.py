@@ -25,6 +25,7 @@ class LangGraphServerManager:
     def __init__(self, config: ServerConfig):
         self.config = config
         self.process: Optional[asyncio.subprocess.Process] = None
+        self.grpc_process: Optional[asyncio.subprocess.Process] = None
     
     async def start_server(self) -> bool:
         """
@@ -39,22 +40,44 @@ class LangGraphServerManager:
         env = os.environ.copy()
         env["PORT"] = str(self.config.langgraph_internal_port)
         env["HOST"] = "127.0.0.1"  # Only bind to localhost for security
-
-        # Use the correct command for LangGraph API server
-        cmd = [
-            "uvicorn", 
-            "langgraph_api.server:app", 
-            "--host", "127.0.0.1", 
-            "--port", str(self.config.langgraph_internal_port)
-        ]
+        env["GRPC_SERVER_ADDRESS"] = "127.0.0.1:50051"
 
         try:
+            # 1. Start Go Core API gRPC server first (required for Postgres persistence)
+            # This mimics the behavior in /storage/entrypoint.sh
+            grpc_cmd = ["core-api-grpc", "-service", "core-api", "-apply-db-schema"]
+            
+            # Check if core-api-grpc is available (it should be in /usr/bin)
+            try:
+                logger.info(f"Starting gRPC Core server: {' '.join(grpc_cmd)}")
+                self.grpc_process = await asyncio.create_subprocess_exec(
+                    *grpc_cmd,
+                    env=env,
+                    stdout=None,
+                    stderr=None
+                )
+                logger.info("gRPC Core server process started")
+            except FileNotFoundError:
+                logger.warning("core-api-grpc not found, skipping gRPC startup (may fail if using Postgres)")
+
+            # Give gRPC a moment to initialize and apply schema
+            await asyncio.sleep(3)
+
+            # 2. Start HTTP API server
+            cmd = [
+                "uvicorn", 
+                "langgraph_api.server:app", 
+                "--host", "127.0.0.1", 
+                "--port", str(self.config.langgraph_internal_port),
+                "--log-config", "/api/logging.json"
+            ]
+
             logger.info(f"Starting LangGraph server: {' '.join(cmd)}")
             self.process = await asyncio.create_subprocess_exec(
                 *cmd,
                 env=env,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stdout=None,
+                stderr=None
             )
 
             # Give it a moment to start
@@ -66,6 +89,9 @@ class LangGraphServerManager:
                 return True
             else:
                 logger.error(f"LangGraph server failed to start with return code {self.process.returncode}")
+                # Try to clean up gRPC if it started
+                if self.grpc_process:
+                    self.grpc_process.terminate()
                 return False
 
         except FileNotFoundError as e:
@@ -119,20 +145,37 @@ class LangGraphServerManager:
     
     async def stop_server(self) -> None:
         """Stop the LangGraph server if it was started by this manager."""
+        # Stop HTTP server
         if self.process:
-            logger.info("Shutting down LangGraph server...")
+            logger.info("Shutting down LangGraph HTTP server...")
             try:
                 self.process.terminate()
-                await asyncio.wait_for(self.process.wait(), timeout=10.0)
-                logger.info("LangGraph server shut down successfully")
+                await asyncio.wait_for(self.process.wait(), timeout=5.0)
+                logger.info("LangGraph HTTP server shut down successfully")
             except asyncio.TimeoutError:
-                logger.warning("LangGraph server did not shut down gracefully, killing...")
+                logger.warning("LangGraph HTTP server did not shut down gracefully, killing...")
                 self.process.kill()
                 await self.process.wait()
             except Exception as e:
-                logger.warning(f"Error shutting down LangGraph server: {e}")
+                logger.warning(f"Error shutting down LangGraph HTTP server: {e}")
             finally:
                 self.process = None
+
+        # Stop gRPC server
+        if self.grpc_process:
+            logger.info("Shutting down LangGraph gRPC server...")
+            try:
+                self.grpc_process.terminate()
+                await asyncio.wait_for(self.grpc_process.wait(), timeout=5.0)
+                logger.info("LangGraph gRPC server shut down successfully")
+            except asyncio.TimeoutError:
+                logger.warning("LangGraph gRPC server did not shut down gracefully, killing...")
+                self.grpc_process.kill()
+                await self.grpc_process.wait()
+            except Exception as e:
+                logger.warning(f"Error shutting down LangGraph gRPC server: {e}")
+            finally:
+                self.grpc_process = None
     
     def get_status(self) -> dict:
         """

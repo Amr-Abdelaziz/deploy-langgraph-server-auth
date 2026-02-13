@@ -5,15 +5,12 @@ services:
       dockerfile: Dockerfile
     container_name: gorbit-server
     ports:
-      - "8002:8001"  # Map container port 8000 to host port 8000
+      - "8000:8000"  # Map container port 8000 to host port 8000
     env_file:
       - .env  # Load environment variables from .env file
     environment:
       # Override any specific environment variables if needed
-      - PYTHONPATH=/deps/deploy-langgraph-servers
-        # Database and cache connection URLs (override in .env if needed)
-      - DATABASE_URL=postgresql://postgres.xsgzthziduxkeksxnbvm:Jasser46101236@aws-1-eu-central-1.pooler.supabase.com:6543/postgres
-      - REDIS_URL=redis://redis:6379/0
+      - PYTHONPATH=/deps/deploy-langgraph-server-auth
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/ok"]
@@ -22,33 +19,33 @@ services:
       retries: 3
       start_period: 40s
     depends_on:
-      # postgres:
-      #   condition: service_healthy
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
       - langgraph-network
-      - default
+     
 
-  # postgres:
-  #   image: postgres:15
-  #   container_name: postgres
-  #   environment:
-  #     POSTGRES_USER: postgres
-  #     POSTGRES_PASSWORD: postgres
-  #     POSTGRES_DB: postgres
-  #   volumes:
-  #     - postgres_data1:/var/lib/postgresql/data
-  #   ports:
-  #     - "5432:5432"
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #   networks:
-  #     - langgraph-network
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - langgraph-network
 
   redis:
     image: redis:7-alpine
@@ -71,5 +68,5 @@ networks:
   #   external: true
   #   name: proxy
 volumes:
-  postgres_data1:
+  postgres_data:
 
